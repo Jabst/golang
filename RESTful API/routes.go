@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/http"
-	"./Users"
+	"./handlers"
 )
 
 type Route struct {
@@ -20,30 +20,48 @@ var routes = Routes{
 		"GetAllUsers",
 		"GET",
 		"/all",
-		user.GetAllUsers,
+		handlers.GetAllUsers,
 	},
 	Route{
 		"GetUserByID",
 		"GET",
 		"/userbyid",
-		user.GetUserByID,
+		handlers.GetUserByID,
 	},
 	Route{
 		"GetUserByName",
 		"GET",
 		"/userbyname",
-		user.GetUserByName,
+		handlers.GetUserByName,
 	},
 	Route{
 		"PostUser",
 		"POST",
 		"/user",
-		user.PostUser,
+		handlers.PostUser,
 	},
 	Route{
 		"DeleteUser",
 		"DELETE",
 		"/user",
-		user.DeleteUser,
+		handlers.DeleteUser,
+	},
+	Route{
+		"GetTaskByUser",
+		"GET",
+		"/taskuser",
+		handlers.GetTaskByUser,
+	},
+	Route{
+		"CreateTask",
+		"POST",
+		"/task",
+		handlers.PostTask,
+	},
+	Route{
+		"DeleteTask",
+		"DELETE",
+		"/task",
+		handlers.DeleteTask,
 	},
 }
