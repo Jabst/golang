@@ -1,16 +1,22 @@
 package handlers
 
 import (
-	"fmt"
-	"log"
-	"net/http"
 	"encoding/json"
 	"io/ioutil"
-	"../db"
+	"log"
+	"net/http"
+
 	"../Models"
+	"../db"
+
+	//"../Utils"
+
+	"fmt"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
-func GetAllUsers(res http.ResponseWriter, req *http.Request){
+func GetAllUsers(res http.ResponseWriter, req *http.Request) {
 
 	users := []models.User{}
 
@@ -28,7 +34,7 @@ func GetAllUsers(res http.ResponseWriter, req *http.Request){
 	res.Write(jdata)
 }
 
-func GetUserByID(res http.ResponseWriter, req *http.Request){
+func GetUserByID(res http.ResponseWriter, req *http.Request) {
 
 	id := req.URL.Query().Get("id")
 
@@ -48,7 +54,7 @@ func GetUserByID(res http.ResponseWriter, req *http.Request){
 	res.Write(jdata)
 }
 
-func GetUserByName(res http.ResponseWriter, req *http.Request){
+func GetUserByName(res http.ResponseWriter, req *http.Request) {
 	name := req.URL.Query().Get("name")
 
 	user := []models.User{}
@@ -67,7 +73,8 @@ func GetUserByName(res http.ResponseWriter, req *http.Request){
 	res.Write(jdata)
 }
 
-func PostUser(res http.ResponseWriter, req *http.Request){
+//PostUser - Handler for user creation (register)
+func PostUser(res http.ResponseWriter, req *http.Request) {
 
 	body, err := ioutil.ReadAll(req.Body)
 
@@ -75,7 +82,7 @@ func PostUser(res http.ResponseWriter, req *http.Request){
 		panic(err)
 	}
 
-	var u models.User
+	var u models.UserRegistration
 
 	err = json.Unmarshal(body, &u)
 
@@ -83,7 +90,33 @@ func PostUser(res http.ResponseWriter, req *http.Request){
 		panic(err)
 	}
 
-	user := models.User{Name: u.Name, Contact: u.Contact}
+	salt := u.Email + u.Name
+
+	password := []byte(u.Password + salt)	
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Println(string(hashedPassword))
+
+	user := models.User {
+					Name 	: u.Name, 
+					Contact		: u.Contact,
+					Email		: u.Email,
+					Password 	: string(hashedPassword[:]),
+					Salt 		: salt,
+			}
+
+
+
+	notErr := bcrypt.CompareHashAndPassword(hashedPassword, password)
+
+	if notErr != nil {
+		panic(notErr)
+	}
 
 	db := db.ConnectDb()
 
@@ -94,8 +127,54 @@ func PostUser(res http.ResponseWriter, req *http.Request){
 	fmt.Fprint(res, "Criei o seguinte user: %s !\n", u.Name)
 }
 
-func DeleteUser(res http.ResponseWriter, req *http.Request){
+func LoginUser(res http.ResponseWriter, req *http.Request) {
+
+	body, err := ioutil.ReadAll(req.Body)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var ul models.UserLogin
+
+	err = json.Unmarshal(body, &ul)
+
+	user := []models.User{}
+
+	db := db.ConnectDb()
+
+	db.Where("Email = ?", ul.Email).First(&user)
+
+	jdata, err := json.Marshal(user)
+
+	if err != nil {
+		panic(err)
+	}
+
+	hashError := bcrypt.CompareHashAndPassword(hashedPassword, password)
+
+	if hashError != nil {
+		panic(hashError)
+
+		msg := models.Error{ Message : "Wrong Password!" }
+
+		res.Header().Set("Content-Type", "application/json")
+		res.Write(msg)
+
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	cookie := utils.SetToken(ul.Email)
+	http.SetCookie(res, &cookie)
+
 	
+	res.Write()
+	
+}
+
+func DeleteUser(res http.ResponseWriter, req *http.Request) {
+
 	body, err := ioutil.ReadAll(req.Body)
 
 	if err != nil {
@@ -110,7 +189,6 @@ func DeleteUser(res http.ResponseWriter, req *http.Request){
 	if err != nil {
 		panic(err)
 	}
-
 
 	db := db.ConnectDb()
 
