@@ -3,6 +3,7 @@ package utils
 import (
 	"net/http"
 	"time"
+	"log"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -34,4 +35,22 @@ func SetToken(username string) http.Cookie {
 		Expires		: expireCookie,
 		HttpOnly	: true,
 	}
+}
+
+func ValidateToken(t string) bool {
+
+	token, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error){
+		return []byte("secret"), nil
+	})
+
+	log.Println(token)
+
+	log.Println(err)
+
+	if err != nil {
+		log.Println("Not Found")
+		return false
+	}
+
+	return true
 }

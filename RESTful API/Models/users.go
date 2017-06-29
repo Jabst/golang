@@ -34,6 +34,10 @@ type UserDeletion struct {
 
 //UserLogin - Model for carrying the plain-text password and the email
 type UserLogin struct {
-	Email    string
-	Password string
+	Email    	string
+	Password 	string
+}
+
+type UserLoggedIn struct {
+	Token 		string 	`json:"token"`
 }

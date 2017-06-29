@@ -9,7 +9,7 @@ import (
 	"../Models"
 	"../db"
 
-	//"../Utils"
+	"../Utils"
 
 	"fmt"
 
@@ -18,20 +18,36 @@ import (
 
 func GetAllUsers(res http.ResponseWriter, req *http.Request) {
 
-	users := []models.User{}
+	if req.Header.Get("Authorization") != "" {
+		if utils.ValidateToken(req.Header.Get("Authorization")) {
+			users := []models.User{}
 
-	db := db.ConnectDb()
+			db := db.ConnectDb()
 
-	db.Find(&users)
+			db.Find(&users)
 
-	jdata, err := json.Marshal(users)
+			jdata, err := json.Marshal(users)
 
-	if err != nil {
-		panic(err)
+			if err != nil {
+				panic(err)
+			}
+
+			res.Header().Set("Content-Type", "application/json")
+			res.Write(jdata)
+		} else {
+
+			msg, _ := json.Marshal(models.Error{ Message : "Invalid Session Token!" })
+			
+			res.Header().Set("Content-Type", "application/json")
+			res.Write(msg)
+		}
+	} else {
+		msg, _ := json.Marshal(models.Error{ Message : "No Header Set!" })
+			
+			res.Header().Set("Content-Type", "application/json")
+			res.Write(msg)
 	}
-
-	res.Header().Set("Content-Type", "application/json")
-	res.Write(jdata)
+	
 }
 
 func GetUserByID(res http.ResponseWriter, req *http.Request) {
@@ -92,7 +108,9 @@ func PostUser(res http.ResponseWriter, req *http.Request) {
 
 	salt := u.Email + u.Name
 
-	password := []byte(u.Password + salt)	
+	password := []byte(u.Password + salt)
+
+	log.Println(string(password))
 
 	hashedPassword, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
 
@@ -137,6 +155,8 @@ func LoginUser(res http.ResponseWriter, req *http.Request) {
 
 	var ul models.UserLogin
 
+	var ulogged models.UserLoggedIn
+
 	err = json.Unmarshal(body, &ul)
 
 	user := []models.User{}
@@ -145,18 +165,22 @@ func LoginUser(res http.ResponseWriter, req *http.Request) {
 
 	db.Where("Email = ?", ul.Email).First(&user)
 
-	jdata, err := json.Marshal(user)
+	
 
-	if err != nil {
-		panic(err)
-	}
+	log.Println(ul.Password)
+	log.Println(user[0].Salt)
+	typedPassword := []byte(ul.Password + user[0].Salt)
 
-	hashError := bcrypt.CompareHashAndPassword(hashedPassword, password)
+	log.Println(string(typedPassword))
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword(typedPassword, bcrypt.DefaultCost)
+
+	hashError := bcrypt.CompareHashAndPassword(hashedPassword, typedPassword)
 
 	if hashError != nil {
 		panic(hashError)
 
-		msg := models.Error{ Message : "Wrong Password!" }
+		msg, _ := json.Marshal(models.Error{ Message : "Wrong Password!" })
 
 		res.Header().Set("Content-Type", "application/json")
 		res.Write(msg)
@@ -165,11 +189,16 @@ func LoginUser(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	cookie := utils.SetToken(ul.Email)
-	http.SetCookie(res, &cookie)
 
-	
-	res.Write()
+	ulogged.Token = utils.SetToken(ul.Email).Value
+
+	jdata, err := json.Marshal(ulogged)
+
+	if err != nil {
+		panic(err)
+	}
+
+	res.Write(jdata)
 	
 }
 
